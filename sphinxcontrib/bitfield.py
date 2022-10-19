@@ -10,40 +10,46 @@ from os.path import join
 class bitfield(nodes.General, nodes.Element):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.options = kwargs['options']
-        if 'compact' not in self.options:
-            self.options['compact'] = False
-        if 'hflip' not in self.options:
-            self.options['hflip'] = False
-        if 'vflip' not in self.options:
-            self.options['vflip'] = False
+        self.options = kwargs["options"]
+        if "compact" not in self.options:
+            self.options["compact"] = False
+        if "hflip" not in self.options:
+            self.options["hflip"] = False
+        if "vflip" not in self.options:
+            self.options["vflip"] = False
 
 
 def visit_bitfield_html(self, node):
-    self.body.append(
-        jsonml_stringify(
-            render(
-                loads(' '.join(node.rawsource)),
-                **node.options
-            )
-        )
+
+    if "address" not in node.options:
+        addr = ""
+    else:
+        addr = node.options["address"]
+        node.options.pop("address")
+    svg = jsonml_stringify(render(loads(" ".join(node.rawsource)), **node.options))
+
+    table = """<table>
+    <tr>
+        <td>{}</td>
+        <td>{}</td>
+    </tr>
+    </table>""".format(
+        addr, svg
     )
+
+    self.body.append(table)
 
 
 def visit_bitfield_latex(self, node):
     from cairosvg import svg2pdf
-    svg = jsonml_stringify(
-        render(
-            loads(' '.join(node.rawsource)),
-            **node.options
-        )
-    )
+
+    svg = jsonml_stringify(render(loads(" ".join(node.rawsource)), **node.options))
     hashkey = str(node.options) + str(node.rawsource)
-    fname = 'bitfield-{}.pdf'.format(sha1(hashkey.encode()).hexdigest())
+    fname = "bitfield-{}.pdf".format(sha1(hashkey.encode()).hexdigest())
     outfn = join(self.builder.outdir, self.builder.imagedir, fname)
     svg2pdf(bytestring=svg, write_to=outfn)
 
-    self.body.append(r'\sphinxincludegraphics[]{{{}}}'.format(fname))
+    self.body.append(r"\sphinxincludegraphics[]{{{}}}".format(fname))
 
 
 def depart_bitfield(self, node):
@@ -53,16 +59,17 @@ def depart_bitfield(self, node):
 class BitfieldDirective(Directive):
     has_content = True
     option_spec = {
-        'vspace': int,
-        'hspace': int,
-        'lanes': int,
-        'bits': int,
-        'fontsize': int,
-        'fontfamily': str,
-        'fontweight': str,
-        'compact': flag,
-        'hflip': flag,
-        'vflip': flag,
+        "vspace": int,
+        "hspace": int,
+        "lanes": int,
+        "bits": int,
+        "fontsize": int,
+        "fontfamily": str,
+        "fontweight": str,
+        "compact": flag,
+        "hflip": flag,
+        "vflip": flag,
+        "address": str,
     }
 
     def run(self):
@@ -70,7 +77,9 @@ class BitfieldDirective(Directive):
 
 
 def setup(app):
-    app.add_node(bitfield,
-                 html=(visit_bitfield_html, depart_bitfield),
-                 latex=(visit_bitfield_latex, depart_bitfield))
-    app.add_directive('bitfield', BitfieldDirective)
+    app.add_node(
+        bitfield,
+        html=(visit_bitfield_html, depart_bitfield),
+        latex=(visit_bitfield_latex, depart_bitfield),
+    )
+    app.add_directive("bitfield", BitfieldDirective)
